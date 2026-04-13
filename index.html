@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>中速运价表生成器 (在线版)</title>
+    <!-- 使用 gcore.jsdelivr.net 加速源，国内速度更快 -->
+    <script src='https://gcore.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <style>
+        :root { --primary-color: #0056b3; --accent-color: #e6f7ff; --bg-color: #f8f9fa; --text-color: #333; --border-color: #dee2e6; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 15px; background-color: var(--bg-color); color: var(--text-color); padding-bottom: 90px; }
+        .header-section { text-align: center; margin-bottom: 20px; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { text-align: center; color: var(--primary-color); margin-top: 5px; font-size: 1.3rem; font-weight: bold; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .product-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .product-tabs::-webkit-scrollbar { display: none; }
+        .product-tab { background-color: #e9ecef !important; color: #495057 !important; border: 1px solid var(--border-color) !important; transition: all 0.3s ease; flex: 1; min-width: 85px; font-size: 0.85rem; white-space: nowrap; padding: 10px 5px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .product-tab.active { background-color: var(--primary-color) !important; color: white !important; border-color: var(--primary-color) !important; box-shadow: 0 4px 8px rgba(0,86,179,0.3); transform: translateY(-2px); }
+        .editor-card { background: #fff; border-radius: 12px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; border: 1px solid var(--border-color); }
+        .card-title { font-size: 1rem; font-weight: bold; color: var(--primary-color); margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #e6f7ff; display: flex; align-items: center; justify-content: space-between; }
+        .form-group { margin-bottom: 12px; position: relative; }
+        .input-label { display: flex; align-items: center; font-size: 0.85rem; color: #555; margin-bottom: 6px; font-weight: 600; }
+        .input-icon { margin-right: 6px; font-size: 1.1rem; }
+        input, textarea, select { width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.95rem; box-sizing: border-box; transition: border-color 0.3s; }
+        input:focus, textarea:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0,86,179,0.1); }
+        textarea { resize: vertical; min-height: 50px; line-height: 1.4; }
+        .row-inputs { display: flex; gap: 12px; flex-wrap: wrap; }
+        .row-inputs > div { flex: 1; min-width: 100px; }
+        
+        /* Buttons */
+        .btn { background-color: var(--primary-color); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 1rem; cursor: pointer; width: 100%; margin-top: 10px; text-align: center; font-weight: 600; transition: transform 0.2s; }
+        .btn:active { transform: scale(0.98); }
+        .btn-outline { background-color: transparent; border: 2px solid var(--primary-color); color: var(--primary-color); }
+        .btn-success { background-color: #28a745 !important; color: white !important; }
+        .btn-warning { background-color: #ffc107 !important; color: black !important; }
+
+        /* OCR Section */
+        .ocr-section { text-align: center; padding: 10px; border: 2px dashed var(--primary-color); border-radius: 8px; margin-bottom: 15px; background: #f0f8ff; position: relative; overflow: hidden; }
+        .ocr-status { font-size: 0.9rem; color: var(--primary-color); margin-top: 8px; font-weight: bold; min-height: 24px; white-space: pre-line; z-index: 2; position: relative; }
+        .ocr-preview-img { max-width: 100%; max-height: 150px; margin-top: 10px; border-radius: 6px; display: none; }
+        .retry-btn { background-color: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; margin-top: 10px; cursor: pointer; display: none; z-index: 2; position: relative; }
+        
+        /* Loading Progress Bar */
+        .loading-bar-container { width: 100%; height: 4px; background: #e0e0e0; margin-top: 10px; border-radius: 2px; overflow: hidden; display: none; z-index: 1; position: relative; }
+        .loading-bar { height: 100%; background: var(--primary-color); width: 0%; transition: width 0.3s ease; }
+
+        /* Drag & Drop Styles */
+        #rates-container { min-height: 50px; margin-bottom: 10px; }
+        .rate-row { display: flex; align-items: center; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px; margin-bottom: 10px; transition: box-shadow 0.3s; position: relative; }
+        .rate-row:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: #bbb; }
+        .drag-handle { cursor: grab; font-size: 1.2rem; color: #999; padding: 0 8px; display: flex; align-items: center; user-select: none; touch-action: none; }
+        .drag-handle:active { cursor: grabbing; color: var(--primary-color); }
+        .rate-content { flex: 1; display: flex; gap: 8px; align-items: center; }
+        .rate-input-group { flex: 1; min-width: 70px; position: relative; }
+        .rate-input-group label { position: absolute; top: -16px; left: 0; font-size: 0.7rem; color: #888; font-weight: bold; }
+        .sortable-ghost { opacity: 0.4; background: #f0f8ff; border: 2px dashed var(--primary-color); }
+        .sortable-drag { cursor: grabbing; transform: scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.2); z-index: 9999; }
+
+        /* Preview Section */
+        #preview-area { margin-top: 20px; border: 1px solid #ccc; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .preview-title { text-align: center; font-size: 0.9rem; color: #666; margin-bottom: 15px; }
+        
+        /* Generated Table Styles */
+        table.generated-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+        .generated-table th, .generated-table td { border: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle; }
+        .generated-table th { background-color: #DBEEF3; font-weight: bold; color: #0056b3; }
+        .header-title { color: red; font-weight: bold; font-size: 15px; text-align: left; margin-bottom: 8px; padding-left: 5px; }
+        .fee-row td { text-align: left !important; padding-left: 8px; line-height: 1.5; }
+
+        /* Fixed Bottom Bar */
+        .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #dee2e6; padding: 12px; display: flex; gap: 10px; box-shadow: 0 -4px 10px rgba(0,0,0,0.1); z-index: 100; }
+        .bottom-bar button { flex: 1; font-size: 0.9rem; padding: 12px; border-radius: 8px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <div class="header-section">
+        <h2>中速运价表生成器 (在线版)</h2>
+        <p style="font-size: 0.8rem; color: #666;">上传截图，一键提取数据</p>
+    </div>
+
+    <!-- Product Tabs -->
+    <div id="product-tabs-container" class="product-tabs"></div>
+
+    <!-- Main Route Settings -->
+    <div class="editor-card">
+        <div class="card-title">✈️ 基础信息配置</div>
+        <div class="form-group"><label class="input-label"><span class="input-icon">🌍</span> 航线 (Route)</label><input type="text" id="route" placeholder="例如：NGB-JFK 宁波-纽约"></div>
+        <div class="form-group"><label class="input-label"><span class="input-icon">✈️</span> 航司机型 (Airline & Plane)</label><input type="text" id="plane" placeholder="例如：5Y B747-400F"></div>
+        <div class="row-inputs">
+            <div class="form-group"><label class="input-label"><span class="input-icon">📅</span> 班期 (Schedule)</label><input type="text" id="schedule" placeholder="例如：D2/4/7"></div>
+            <div class="form-group"><label class="input-label"><span class="input-icon">📆</span> 有效期 (Valid Date)</label><input type="date" id="validDate"></div>
+        </div>
+    </div>
+
+    <!-- OCR Upload Section -->
+    <div class="editor-card">
+        <div class="card-title">🤖 AI 智能识别价格表</div>
+        <div class="ocr-section">
+            <input type="file" id="ocr-upload" accept="image/*" onchange="handleOCRUpload(this)">
+            <img id="ocr-preview-img" class="ocr-preview-img" alt="OCR Preview">
+            <div id="ocr-status" class="ocr-status">等待上传...</div>
+            <div class="loading-bar-container"><div class="loading-bar"></div></div>
+            <button id="retry-btn" class="retry-btn" onclick="resetOCR()">🔄 重试加载</button>
+        </div>
+        <small style="color: #666; display: block;">提示：首次使用需下载约 20MB 中文模型，请保持网络通畅。数据在本地处理，安全无忧。</small>
+    </div>
+
+    <!-- Density & Price Input with Drag & Drop -->
+    <div class="editor-card">
+        <div class="card-title">📊 价格表配置 (拖动 ⋮⋮ 调整顺序)</div>
+        <div id="rates-container"></div>
+        <button type="button" class="btn btn-outline" onclick="addRateRow()">+ 添加密度行</button>
+    </div>
+
+    <!-- Notes & Fees -->
+    <div class="editor-card">
+        <div class="card-title">📝 备注与费用</div>
+        <div class="form-group"><label class="input-label"><span class="input-icon">💬</span> 通用备注 (Notes)</label><textarea id="noteText" placeholder="例如：EUP需申请，价格+1..."></textarea></div>
+        <div class="form-group"><label class="input-label"><span class="input-icon">💰</span> 口岸操作费 (Fees)</label><textarea id="feeText" placeholder="输入费用明细，每行一条"></textarea></div>
+    </div>
+
+    <!-- Preview Section -->
+    <div id="preview-area">
+        <h3 class="preview-title">📱 实时预览</h3>
+        <div id="table-output"></div>
+    </div>
+
+</div>
+
+<!-- Fixed Bottom Bar -->
+<div class="bottom-bar">
+    <button class="btn btn-outline" style="background:#f0f8ff; border-color:#17a2b8; color:#17a2b8;" onclick="undoProfit()">↩️ 撤销</button>
+    <button class="btn btn-outline" style="background:#fff0f0; border-color:#dc3545; color:#dc3545;" onclick="addProfit(0.5)">📈 +0.5元</button>
+    <button class="btn btn-outline" style="background:#fff0f0; border-color:#dc3545; color:#dc3545;" onclick="addProfit(1.0)">🚀 +1.0元</button>
+    <button class="btn btn-success" onclick="generateHTML()">📋 复制代码</button>
+</div>
+
+<script>
+    const products = {
+        "NGB-JFK": { name: "宁波-纽约", route: "NGB-JFK\n宁波-纽约", plane: "5Y\nB747-400F", schedule: "D2/4/7", validDate: "2026-04-13", note: "EUP需申请，价格+1\n(整板：PV/毛重/体积重取大)", fees: `1. 普货1.2/KG...`, rates: [ { density: "1:1", price500: "44.5", price1000: "44.5" }, { density: "1:200", price500: "42.5", price1000: "42.5" } ] },
+        "XIY-CDG": { name: "西安-巴黎", route: "XIY-CDG\n西安-巴黎", plane: "2C\nB777-200F", schedule: "D2/4/6", validDate: "2026-04-13", note: "EUP需申请，价格+1\n(整板：PV/毛重/体积重取大)", fees: `1. 普货1.3/KG...`, rates: [ { density: "≤1 : 140", price500: "27.5", price1000: "26.5" }, { density: "1:1", price500: "31.5", price1000: "30.5" } ] },
+        "NGB-LGG": { name: "宁波-列日", route: "NGB-LGG\n宁波-列日", plane: "3V\nB747-400F", schedule: "D1/3/5", validDate: "2026-04-13", note: "EUP需申请，价格+1\n(整板：PV/毛重/体积重取大)", fees: `1. 普货1.2/KG...`, rates: [ { density: "1:1", price500: "34.5", price1000: "33.5" }, { density: "1:200", price500: "31.5", price1000: "30.5" } ] }
+    };
+
+    let currentProductKey = "NGB-JFK";
+    let rates = []; 
+    let profitHistory = []; 
+    let sortableInstance = null;
+    let ocrWorker = null;
+    let isOcrLoading = false;
+    let loadTimeout = null;
+
+    function init() {
+        renderTabs();
+        loadProduct(currentProductKey);
+    }
+
+    function renderTabs() {
+        const container = document.getElementById('product-tabs-container');
+        container.innerHTML = '';
+        Object.keys(products).forEach(key => {
+            const p = products[key];
+            const btn = document.createElement('button');
+            btn.className = 'btn product-tab';
+            btn.dataset.key = key;
+            let flag = "✈️"; if(key.includes("JFK")) flag = "🇺🇸"; else if(key.includes("CDG")) flag = "🇫🇷"; else if(key.includes("LGG")) flag = "🇧🇪";
+            btn.innerHTML = `${flag} ${p.name}`;
+            btn.onclick = () => loadProduct(key);
+            container.appendChild(btn);
+        });
+    }
+
+    function loadProduct(key) {
+        if (!products[key]) return;
+        currentProductKey = key;
+        const p = products[key];
+        profitHistory = []; 
+        rates = JSON.parse(JSON.stringify(p.rates));
+        
+        document.getElementById('route').value = p.route;
+        document.getElementById('plane').value = p.plane;
+        document.getElementById('schedule').value = p.schedule;
+        document.getElementById('validDate').value = p.validDate;
+        document.getElementById('noteText').value = p.note;
+        document.getElementById('feeText').value = p.fees;
+        
+        renderRates(); 
+        generateTable();
+        updateActiveTab(key);
+    }
+
+    function updateActiveTab(activeKey) {
+        const tabs = document.querySelectorAll('.product-tab');
+        tabs.forEach(tab => { if (tab.dataset.key === activeKey) tab.classList.add('active'); else tab.classList.remove('active'); });
+    }
+
+    async function handleOCRUpload(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const reader = new FileReader();
+            
+            document.getElementById('ocr-preview-img').src = URL.createObjectURL(file);
+            document.getElementById('ocr-preview-img').style.display = 'block';
+            document.getElementById('ocr-status').innerHTML = "⏳ 正在初始化 OCR 引擎 (首次需下载模型)...\n请勿关闭页面";
+            document.getElementById('retry-btn').style.display = 'none';
+            document.querySelector('.loading-bar-container').style.display = 'block';
+            document.querySelector('.loading-bar').style.width = '0%';
+
+            startOCR(file);
+        }
+    }
+
+    async function startOCR(file) {
+        const statusDiv = document.getElementById('ocr-status');
+        const loadingBar = document.querySelector('.loading-bar');
+        isOcrLoading = true;
+        
+        if (loadTimeout) clearTimeout(loadTimeout);
+        loadTimeout = setTimeout(() => {
+            if (isOcrLoading) {
+                statusDiv.innerHTML = "⚠️ 加载超时！\n请检查网络或点击重试。";
+                document.getElementById('retry-btn').style.display = 'inline-block';
+                isOcrLoading = false;
+            }
+        }, 20000); // 20s timeout
+
+        try {
+            if (!ocrWorker || ocrWorker.terminate) {
+                ocrWorker = await Tesseract.createWorker({
+                    logger: m => {
+                        if(m.status === 'recognizing text') {
+                            statusDiv.innerHTML = `🤖 正在识别中... ${Math.round(m.progress * 100)}%`;
+                            loadingBar.style.width = `${m.progress * 100}%`;
+                        } else if (m.status === 'loading language') {
+                            const loaded = m.loaded || 0;
+                            const total = m.total || '?';
+                            statusDiv.innerHTML = `⏳ 正在下载模型...\n${loaded} / ${total}`;
+                            loadingBar.style.width = `${(loaded/total)*100}%`;
+                        } else {
+                            statusDiv.innerHTML = `🔄 ${m.status.replace(/_/g, ' ')}`;
+                        }
+                    },
+                    workerPath: 'https://gcore.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+                    langPath: 'https://gcore.jsdelivr.net/npm/tesseract.js@5/dist/tessdata/',
+                });
+            }
+
+            await ocrWorker.loadLanguage('chi_sim+eng');
+            await ocrWorker.initialize('chi_sim+eng');
+
+            statusDiv.innerHTML = "🤖 正在分析图片...";
+            loadingBar.style.width = '80%';
+            
+            const { data: { text } } = await ocrWorker.recognize(file);
+            
+            if (loadTimeout) clearTimeout(loadTimeout);
+            isOcrLoading = false;
+            loadingBar.style.width = '100%';
+
+            console.log("OCR Result:", text);
+            statusDiv.innerHTML = "✅ 识别完成！正在提取数据...";
+            
+            parseAndFillData(text);
+            
+        } catch (error) {
+            console.error(error);
+            if (loadTimeout) clearTimeout(loadTimeout);
+            isOcrLoading = false;
+            statusDiv.innerHTML = "❌ 识别失败：" + error.message;
+            document.getElementById('retry-btn').style.display = 'inline-block';
+        }
+    }
+
+    function resetOCR() {
+        document.getElementById('ocr-status').innerHTML = "🔄 正在重试...";
+        const input = document.getElementById('ocr-upload');
+        if (input.files && input.files[0]) {
+            startOCR(input.files[0]);
+        } else {
+            alert("请先选择图片");
+        }
+    }
+
+    function parseAndFillData(text) {
+        const lines = text.split('\n').filter(line => line.trim().length > 0);
+        let detectedRoute = "";
+        let detectedPlane = "";
+        let extractedRates = [];
+        
+        const routeRegex = /(NGB|XIY|SHA|PVG).*?([-\u4e00-\u9fa5a-zA-Z]+).*?(JFK|CDG|LGG|LHR|AMS)/i;
+        const planeRegex = /(\d[A-Z]\s+\w+-\d+[A-Z]|\w+-\d+[A-Z])/i;
+
+        for (let i = 0; i < Math.min(lines.length, 5); i++) {
+            const line = lines[i];
+            if (!detectedRoute && routeRegex.test(line)) detectedRoute = line.trim();
+            if (!detectedPlane && planeRegex.test(line) && !detectedRoute.includes(planeRegex.exec(line)[0])) detectedPlane = line.trim();
+        }
+
+        const densityPriceRegex = /([0-9.:≤]+)\s+([\d.]+)\s*[\u4e00-\u9fa5]?\s*([\d.]+)/; 
+        
+        lines.forEach(line => {
+            const match = line.match(densityPriceRegex);
+            if (match) {
+                extractedRates.push({ density: match[1].trim(), price500: match[2], price1000: match[3] || match[2] });
+            }
+        });
+
+        let updated = false;
+        if (detectedRoute) { document.getElementById('route').value = detectedRoute; updated = true; }
+        if (detectedPlane) { document.getElementById('plane').value = detectedPlane; updated = true; }
+
+        if (extractedRates.length > 0) {
+            rates = extractedRates; 
+            renderRates(); 
+            generateTable();
+            updated = true;
+            setTimeout(() => alert(`✅ 识别成功！找到 ${extractedRates.length} 条数据。`), 500);
+        } else {
+            if (updated) setTimeout(() => alert("⚠️ 仅识别到航线，请手动补充价格。"), 500);
+            else setTimeout(() => alert("⚠️ 未识别到有效数据，请检查图片。"), 500);
+        }
+    }
+
+    function renderRates() {
+        const container = document.getElementById('rates-container');
+        container.innerHTML = '';
+        rates.forEach((rate, index) => {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'rate-row';
+            const handle = document.createElement('div');
+            handle.className = 'drag-handle';
+            handle.innerHTML = '⋮⋮';
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'rate-content';
+            
+            const densityGroup = document.createElement('div');
+            densityGroup.className = 'rate-input-group rate-input-group flex-2';
+            densityGroup.innerHTML = `<label>密度</label><input type="text" value="${rate.density}" onchange="updateRate(${index}, 'density', this.value)">`;
+
+            const p500Group = document.createElement('div');
+            p500Group.className = 'rate-input-group';
+            p500Group.innerHTML = `<label>+500KG</label><input type="number" step="0.1" value="${rate.price500}" onchange="updateRate(${index}, 'price500', this.value)">`;
+
+            const p1000Group = document.createElement('div');
+            p1000Group.className = 'rate-input-group';
+            p1000Group.innerHTML = `<label>+1000KG</label><input type="number" step="0.1" value="${rate.price1000}" onchange="updateRate(${index}, 'price1000', this.value)">`;
+
+            contentDiv.appendChild(densityGroup);
+            contentDiv.appendChild(p500Group);
+            contentDiv.appendChild(p1000Group);
+            
+            rowDiv.appendChild(handle);
+            rowDiv.appendChild(contentDiv);
+            container.appendChild(rowDiv);
+        });
+
+        if (sortableInstance) sortableInstance.destroy();
+        sortableInstance = new Sortable(container, {
+            handle: '.drag-handle', 
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            dragClass: 'sortable-drag',
+            onEnd: function (evt) {
+                const item = rates.splice(evt.oldIndex, 1)[0];
+                rates.splice(evt.newIndex, 0, item);
+                Array.from(container.children).forEach((child, idx) => child.setAttribute('data-index', idx));
+                generateTable(); 
+            }
+        });
+    }
+
+    function updateRate(index, field, value) { rates[index][field] = value; generateTable(); }
+    function addRateRow() { saveState(); rates.push({ density: "1:0", price500: "", price1000: "" }); renderRates(); generateTable(); }
+
+    function saveState() { const s = JSON.parse(JSON.stringify(rates)); profitHistory.push(s); if (profitHistory.length > 20) profitHistory.shift(); }
+    function addProfit(amount) { saveState(); rates.forEach(r => { if(r.price500!==""){ let v=parseFloat(r.price500); if(!isNaN(v)) r.price500=(v+amount).toFixed(1);} if(r.price1000!==""){ let v=parseFloat(r.price1000); if(!isNaN(v)) r.price1000=(v+amount).toFixed(1);} }); renderRates(); generateTable(); }
+    function undoProfit() { if (profitHistory.length === 0) { alert("没有可撤销的操作！"); return; } rates = profitHistory.pop(); renderRates(); generateTable(); }
+
+    function generateTable() {
+        let route = document.getElementById('route').value.replace(/\n/g, '<br>');
+        let plane = document.getElementById('plane').value.replace(/\n/g, '<br>');
+        const schedule = document.getElementById('schedule').value;
+        const validDateRaw = document.getElementById('validDate').value;
+        
+        let validDate = "";
+        if(validDateRaw) { const d = new Date(validDateRaw); validDate = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日至<br>新指导价发布`; }
+        
+        const noteText = document.getElementById('noteText').value.replace(/\n/g, '<br>');
+        const feeLines = document.getElementById('feeText').value.split('\n').filter(l => l.trim()).map(l => `<tr class="fee-row"><td colspan="8">${l}</td></tr>`).join('');
+        
+        let portName = "口岸";
+        if(route.includes('<br>')) { const p = route.split('<br>'); if(p[1]) portName = p[1] + "操作费"; } else if (route.includes('-')) portName = route.split('-')[0] + "操作费";
+
+        let rowsHtml = '';
+        rates.forEach((r, i) => {
+            if (i === 0) rowsHtml += `<tr><td rowspan="${rates.length}"><b>${route}</b></td><td rowspan="${rates.length}">${plane}</td><td rowspan="${rates.length}">${schedule}</td><td>${r.density}</td><td>${r.price500}</td><td>${r.price1000}</td><td rowspan="${rates.length}">${noteText}</td><td rowspan="${rates.length}" style="color:red; font-weight:bold;">${validDate}</td></tr>`;
+            else rowsHtml += `<tr><td>${r.density}</td><td>${r.price500}</td><td>${r.price1000}</td></tr>`;
+        });
+
+        return `
+<style>table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #000;padding:5px;text-align:center}th{background:#DBEEF3;color:#0056b3}.header-title{color:red;font-weight:bold;text-align:left;margin-bottom:5px}.fee-row td{text-align:left !important;padding-left:8px}</style>
+<table><thead><tr><th>航线</th><th>航司机型</th><th>班期</th><th>密度</th><th>+500KG</th><th>+1000KG</th><th>备注</th><th>有效期</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+<div class="header-title">${portName}</div><table style="border:none;width:100%"><tbody>${feeLines}</tbody></table>`;
+    }
+
+    function generateHTML() { const h = generateTable(); navigator.clipboard.writeText(h).then(() => alert("✅ 代码已复制！")).catch(e => alert("复制失败：" + e)); }
+
+    window.onload = init;
+</script>
+</body>
+</html>
