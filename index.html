@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>中速运价表生成器 (GitHub 版)</title>
+    <title>中速运价表生成器 (稳定版)</title>
     
-    <!-- 使用 jsdelivr CDN 加载 Tesseract v5 (通常国内访问较快) -->
-    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    <!-- 使用 Tesseract.js v4.1.1，更稳定，对 CDN 兼容性更好 -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js'></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 
     <style>
@@ -80,8 +80,8 @@
 
 <div class="container">
     <div class="header-section">
-        <h2>中速运价表生成器 (GitHub)</h2>
-        <p style="font-size: 0.8rem; color: #666;">上传截图，本地识别数据</p>
+        <h2>中速运价表生成器 (稳定版)</h2>
+        <p style="font-size: 0.8rem; color: #666;">上传截图，自动识别数据</p>
     </div>
 
     <!-- Product Tabs -->
@@ -108,7 +108,7 @@
             <div class="loading-bar-container"><div class="loading-bar"></div></div>
             <button id="retry-btn" class="retry-btn" onclick="resetOCR()">🔄 重试加载</button>
         </div>
-        <small style="color: #666; display: block;">提示：语言包已预置在项目中，识别速度将非常快。</small>
+        <small style="color: #666; display: block;">提示：首次使用需下载约 20MB 模型，请耐心等待。数据在本地处理。</small>
     </div>
 
     <!-- Rates Input -->
@@ -141,14 +141,6 @@
 </div>
 
 <script>
-    // --- Configuration: REPLACE THESE WITH YOUR GITHUB URLS ---
-    // 请在这里替换为你的 GitHub 用户名和仓库名！
-    const USER_NAME = "lvzhannb";      // 你的 GitHub 用户名
-    const REPO_NAME = "rate-generator"; // 你的仓库名 (不区分大小写)
-    
-    // 构建语言包路径 (自动使用 jsdelivr 加速 CDN 访问你的文件)
-    const LANG_PATH = `https://cdn.jsdelivr.net/gh/${USER_NAME}/${REPO_NAME}/chi_sim.traineddata`;
-
     // --- Data & State ---
     const products = {
         "NGB-JFK": { name: "宁波-纽约", route: "NGB-JFK\n宁波-纽约", plane: "5Y\nB747-400F", schedule: "D2/4/7", validDate: "2026-04-13", note: "EUP需申请，价格+1\n(整板：PV/毛重/体积重取大)", fees: `1. 普货1.2/KG...`, rates: [ { density: "1:1", price500: "44.5", price1000: "44.5" }, { density: "1:200", price500: "42.5", price1000: "42.5" } ] },
@@ -213,7 +205,7 @@
             const file = input.files[0];
             document.getElementById('ocr-preview-img').src = URL.createObjectURL(file);
             document.getElementById('ocr-preview-img').style.display = 'block';
-            document.getElementById('ocr-status').innerHTML = "⏳ 正在初始化 OCR (加载本地模型)...\n请勿关闭页面";
+            document.getElementById('ocr-status').innerHTML = "⏳ 正在初始化 OCR (加载模型)...\n首次可能需要 15-30 秒";
             document.getElementById('retry-btn').style.display = 'none';
             document.querySelector('.loading-bar-container').style.display = 'block';
             document.querySelector('.loading-bar').style.width = '0%';
@@ -228,39 +220,42 @@
         isOcrLoading = true;
         
         if (loadTimeout) clearTimeout(loadTimeout);
-        // 延长超时时间以防首次加载大文件
+        // 延长超时至 40秒，因为网络可能很慢
         loadTimeout = setTimeout(() => {
             if (isOcrLoading) {
-                statusDiv.innerHTML = "⚠️ 加载超时！\n请检查网络或仓库路径是否正确。\n确认 chi_sim.traineddata 已上传。";
+                statusDiv.innerHTML = "⚠️ 加载超时！\n请检查网络。\n如果一直失败，建议手动输入数据。";
                 document.getElementById('retry-btn').style.display = 'inline-block';
                 isOcrLoading = false;
             }
-        }, 30000); 
+        }, 40000); 
 
         try {
-            if (!ocrWorker || ocrWorker.terminate) {
-                // 【关键】使用预置路径加载语言包
+            if (!ocrWorker) {
+                // 【关键修改】使用 v4 的默认配置，不指定 langPath，让它自动去 CDN 下载
+                // Tesseract v4 会自动缓存到 IndexedDB，下次会快很多
                 ocrWorker = await Tesseract.createWorker({
                     logger: m => {
                         if(m.status === 'recognizing text') {
                             statusDiv.innerHTML = `🤖 正在识别中... ${Math.round(m.progress * 100)}%`;
                             loadingBar.style.width = `${m.progress * 100}%`;
                         } else if (m.status === 'loading language') {
-                             // 显示下载进度
                              const loaded = m.loaded || 0;
                              const total = m.total || '?';
-                             statusDiv.innerHTML = `⏳ 正在加载模型...\n${loaded} / ${total}`;
+                             statusDiv.innerHTML = `⏳ 正在下载模型...\n${loaded} / ${total}`;
                              loadingBar.style.width = `${(loaded/total)*100}%`;
                         } else {
                             statusDiv.innerHTML = `🔄 ${m.status.replace(/_/g, ' ')}`;
                         }
                     },
-                    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-                    // 这里指向你的 GitHub 文件 (通过 jsdelivr 加速)
-                    langPath: LANG_PATH, 
+                    // 使用 jsdelivr 加速源
+                    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/worker.min.js',
                 });
             }
 
+            // 加载语言包 (自动从 CDN 下载并缓存)
+            statusDiv.innerHTML = "⏳ 正在加载中文模型...";
+            loadingBar.style.width = '30%';
+            
             await ocrWorker.loadLanguage('chi_sim');
             await ocrWorker.initialize('chi_sim');
 
@@ -303,7 +298,6 @@
         let detectedPlane = "";
         let extractedRates = [];
         
-        // Regex patterns
         const routeRegex = /(NGB|XIY|SHA|PVG).*?([-\u4e00-\u9fa5a-zA-Z]+).*?(JFK|CDG|LGG|LHR|AMS)/i;
         const planeRegex = /(\d[A-Z]\s+\w+-\d+[A-Z]|\w+-\d+[A-Z])/i;
 
@@ -334,7 +328,7 @@
             setTimeout(() => alert(`✅ 识别成功！找到 ${extractedRates.length} 条数据。`), 500);
         } else {
             if (updated) setTimeout(() => alert("⚠️ 仅识别到航线，请手动补充价格。"), 500);
-            else setTimeout(() => alert("⚠️ 未识别到有效数据，请检查图片清晰度。"), 500);
+            else setTimeout(() => alert("⚠️ 未识别到有效数据，请检查图片清晰度或尝试手动输入。"), 500);
         }
     }
 
