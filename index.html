@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>中速运价表生成器 (稳定版)</title>
+    <title>中速运价表生成器 (终极宽松版)</title>
     
-    <!-- 使用 Tesseract.js v4.1.1，更稳定，对 CDN 兼容性更好 -->
     <script src='https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js'></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 
@@ -16,13 +15,11 @@
         h2 { text-align: center; color: var(--primary-color); margin-top: 5px; font-size: 1.3rem; font-weight: bold; }
         .container { max-width: 600px; margin: 0 auto; }
         
-        /* Tabs */
         .product-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         .product-tabs::-webkit-scrollbar { display: none; }
         .product-tab { background-color: #e9ecef !important; color: #495057 !important; border: 1px solid var(--border-color) !important; transition: all 0.3s ease; flex: 1; min-width: 85px; font-size: 0.85rem; white-space: nowrap; padding: 10px 5px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .product-tab.active { background-color: var(--primary-color) !important; color: white !important; border-color: var(--primary-color) !important; box-shadow: 0 4px 8px rgba(0,86,179,0.3); transform: translateY(-2px); }
 
-        /* Cards */
         .editor-card { background: #fff; border-radius: 12px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; border: 1px solid var(--border-color); }
         .card-title { font-size: 1rem; font-weight: bold; color: var(--primary-color); margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #e6f7ff; display: flex; align-items: center; justify-content: space-between; }
         .form-group { margin-bottom: 12px; position: relative; }
@@ -30,17 +27,15 @@
         .input-icon { margin-right: 6px; font-size: 1.1rem; }
         input, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.95rem; box-sizing: border-box; transition: border-color 0.3s; }
         input:focus, textarea:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0,86,179,0.1); }
-        textarea { resize: vertical; min-height: 50px; line-height: 1.4; }
+        textarea { resize: vertical; min-height: 50px; line-height: 1.4; background: #fafafa; font-family: monospace; font-size: 0.85rem; }
         .row-inputs { display: flex; gap: 12px; flex-wrap: wrap; }
         .row-inputs > div { flex: 1; min-width: 100px; }
 
-        /* Buttons */
         .btn { background-color: var(--primary-color); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 1rem; cursor: pointer; width: 100%; margin-top: 10px; text-align: center; font-weight: 600; transition: transform 0.2s; }
         .btn:active { transform: scale(0.98); }
         .btn-outline { background-color: transparent; border: 2px solid var(--primary-color); color: var(--primary-color); }
         .btn-success { background-color: #28a745 !important; color: white !important; }
 
-        /* OCR Section */
         .ocr-section { text-align: center; padding: 10px; border: 2px dashed var(--primary-color); border-radius: 8px; margin-bottom: 15px; background: #f0f8ff; position: relative; overflow: hidden; }
         .ocr-status { font-size: 0.9rem; color: var(--primary-color); margin-top: 8px; font-weight: bold; min-height: 24px; white-space: pre-line; z-index: 2; position: relative; }
         .ocr-preview-img { max-width: 100%; max-height: 150px; margin-top: 10px; border-radius: 6px; display: none; }
@@ -48,7 +43,6 @@
         .loading-bar-container { width: 100%; height: 4px; background: #e0e0e0; margin-top: 10px; border-radius: 2px; overflow: hidden; display: none; z-index: 1; position: relative; }
         .loading-bar { height: 100%; background: var(--primary-color); width: 0%; transition: width 0.3s ease; }
 
-        /* Drag & Drop */
         #rates-container { min-height: 50px; margin-bottom: 10px; }
         .rate-row { display: flex; align-items: center; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px; margin-bottom: 10px; transition: box-shadow 0.3s; position: relative; }
         .rate-row:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: #bbb; }
@@ -60,34 +54,33 @@
         .sortable-ghost { opacity: 0.4; background: #f0f8ff; border: 2px dashed var(--primary-color); }
         .sortable-drag { cursor: grabbing; transform: scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.2); z-index: 9999; }
 
-        /* Preview */
         #preview-area { margin-top: 20px; border: 1px solid #ccc; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .preview-title { text-align: center; font-size: 0.9rem; color: #666; margin-bottom: 15px; }
 
-        /* Table Styles */
         table.generated-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
         .generated-table th, .generated-table td { border: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle; }
         .generated-table th { background-color: #DBEEF3; font-weight: bold; color: #0056b3; }
         .header-title { color: red; font-weight: bold; font-size: 15px; text-align: left; margin-bottom: 8px; padding-left: 5px; }
         .fee-row td { text-align: left !important; padding-left: 8px; line-height: 1.5; }
 
-        /* Bottom Bar */
         .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #dee2e6; padding: 12px; display: flex; gap: 10px; box-shadow: 0 -4px 10px rgba(0,0,0,0.1); z-index: 100; }
         .bottom-bar button { flex: 1; font-size: 0.9rem; padding: 12px; border-radius: 8px; font-weight: bold; }
+        
+        /* Debug Section */
+        .debug-section { margin-top: 15px; background: #fff3cd; padding: 10px; border-radius: 8px; border: 1px solid #ffeeba; display: none; }
+        .debug-title { font-weight: bold; color: #856404; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header-section">
-        <h2>中速运价表生成器 (稳定版)</h2>
-        <p style="font-size: 0.8rem; color: #666;">上传截图，自动识别数据</p>
+        <h2>中速运价表生成器 (终极宽松版)</h2>
+        <p style="font-size: 0.8rem; color: #666;">已移除所有过滤逻辑，直接提取数字</p>
     </div>
 
-    <!-- Product Tabs -->
     <div id="product-tabs-container" class="product-tabs"></div>
 
-    <!-- Route Settings -->
     <div class="editor-card">
         <div class="card-title">✈️ 基础信息配置</div>
         <div class="form-group"><label class="input-label"><span class="input-icon">🌍</span> 航线 (Route)</label><input type="text" id="route" placeholder="例如：NGB-JFK 宁波-纽约"></div>
@@ -98,7 +91,6 @@
         </div>
     </div>
 
-    <!-- OCR Upload -->
     <div class="editor-card">
         <div class="card-title">🤖 AI 智能识别价格表</div>
         <div class="ocr-section">
@@ -108,31 +100,34 @@
             <div class="loading-bar-container"><div class="loading-bar"></div></div>
             <button id="retry-btn" class="retry-btn" onclick="resetOCR()">🔄 重试加载</button>
         </div>
-        <small style="color: #666; display: block;">提示：首次使用需下载约 20MB 模型，请耐心等待。数据在本地处理。</small>
+        
+        <!-- Debug Output -->
+        <div id="debug-section" class="debug-section">
+            <div class="debug-title">🔍 OCR 原始识别结果 (调试用):</div>
+            <textarea id="ocr-debug-text" readonly style="height: 100px; width: 100%;"></textarea>
+        </div>
+
+        <small style="color: #666; display: block;">提示：如果识别失败，请查看上方黄色区域的原始文字，截图发给我以便调整。</small>
     </div>
 
-    <!-- Rates Input -->
     <div class="editor-card">
         <div class="card-title">📊 价格表配置 (拖动 ⋮⋮ 调整顺序)</div>
         <div id="rates-container"></div>
         <button type="button" class="btn btn-outline" onclick="addRateRow()">+ 添加密度行</button>
     </div>
 
-    <!-- Notes & Fees -->
     <div class="editor-card">
         <div class="card-title">📝 备注与费用</div>
         <div class="form-group"><label class="input-label"><span class="input-icon">💬</span> 通用备注 (Notes)</label><textarea id="noteText" placeholder="例如：EUP需申请，价格+1..."></textarea></div>
         <div class="form-group"><label class="input-label"><span class="input-icon">💰</span> 口岸操作费 (Fees)</label><textarea id="feeText" placeholder="输入费用明细，每行一条"></textarea></div>
     </div>
 
-    <!-- Preview -->
     <div id="preview-area">
         <h3 class="preview-title">📱 实时预览</h3>
         <div id="table-output"></div>
     </div>
 </div>
 
-<!-- Bottom Bar -->
 <div class="bottom-bar">
     <button class="btn btn-outline" style="background:#f0f8ff; border-color:#17a2b8; color:#17a2b8;" onclick="undoProfit()">↩️ 撤销</button>
     <button class="btn btn-outline" style="background:#fff0f0; border-color:#dc3545; color:#dc3545;" onclick="addProfit(0.5)">📈 +0.5元</button>
@@ -141,7 +136,6 @@
 </div>
 
 <script>
-    // --- Data & State ---
     const products = {
         "NGB-JFK": { name: "宁波-纽约", route: "NGB-JFK\n宁波-纽约", plane: "5Y\nB747-400F", schedule: "D2/4/7", validDate: "2026-04-13", note: "EUP需申请，价格+1\n(整板：PV/毛重/体积重取大)", fees: `1. 普货1.2/KG...`, rates: [ { density: "1:1", price500: "44.5", price1000: "44.5" }, { density: "1:200", price500: "42.5", price1000: "42.5" } ] },
         "XIY-CDG": { name: "西安-巴黎", route: "XIY-CDG\n西安-巴黎", plane: "2C\nB777-200F", schedule: "D2/4/6", validDate: "2026-04-13", note: "EUP需申请，价格+1\n(整板：PV/毛重/体积重取大)", fees: `1. 普货1.3/KG...`, rates: [ { density: "≤1 : 140", price500: "27.5", price1000: "26.5" }, { density: "1:1", price500: "31.5", price1000: "30.5" } ] },
@@ -205,10 +199,14 @@
             const file = input.files[0];
             document.getElementById('ocr-preview-img').src = URL.createObjectURL(file);
             document.getElementById('ocr-preview-img').style.display = 'block';
-            document.getElementById('ocr-status').innerHTML = "⏳ 正在初始化 OCR (加载模型)...\n首次可能需要 15-30 秒";
+            document.getElementById('ocr-status').innerHTML = "⏳ 正在初始化 OCR...";
             document.getElementById('retry-btn').style.display = 'none';
             document.querySelector('.loading-bar-container').style.display = 'block';
             document.querySelector('.loading-bar').style.width = '0%';
+            
+            // Reset debug
+            document.getElementById('debug-section').style.display = 'none';
+            document.getElementById('ocr-debug-text').value = '';
 
             startOCR(file);
         }
@@ -220,10 +218,9 @@
         isOcrLoading = true;
         
         if (loadTimeout) clearTimeout(loadTimeout);
-        // 延长超时至 40秒，因为网络可能很慢
         loadTimeout = setTimeout(() => {
             if (isOcrLoading) {
-                statusDiv.innerHTML = "⚠️ 加载超时！\n请检查网络。\n如果一直失败，建议手动输入数据。";
+                statusDiv.innerHTML = "⚠️ 加载超时！";
                 document.getElementById('retry-btn').style.display = 'inline-block';
                 isOcrLoading = false;
             }
@@ -231,8 +228,6 @@
 
         try {
             if (!ocrWorker) {
-                // 【关键修改】使用 v4 的默认配置，不指定 langPath，让它自动去 CDN 下载
-                // Tesseract v4 会自动缓存到 IndexedDB，下次会快很多
                 ocrWorker = await Tesseract.createWorker({
                     logger: m => {
                         if(m.status === 'recognizing text') {
@@ -247,12 +242,10 @@
                             statusDiv.innerHTML = `🔄 ${m.status.replace(/_/g, ' ')}`;
                         }
                     },
-                    // 使用 jsdelivr 加速源
                     workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/worker.min.js',
                 });
             }
 
-            // 加载语言包 (自动从 CDN 下载并缓存)
             statusDiv.innerHTML = "⏳ 正在加载中文模型...";
             loadingBar.style.width = '30%';
             
@@ -268,9 +261,11 @@
             isOcrLoading = false;
             loadingBar.style.width = '100%';
 
-            console.log("OCR Result:", text);
-            statusDiv.innerHTML = "✅ 识别完成！正在提取数据...";
+            // Show Debug Output
+            document.getElementById('debug-section').style.display = 'block';
+            document.getElementById('ocr-debug-text').value = text;
             
+            statusDiv.innerHTML = "✅ 识别完成！正在提取数据...";
             parseAndFillData(text);
             
         } catch (error) {
@@ -292,43 +287,81 @@
         }
     }
 
+    // --- 终极宽松解析逻辑 ---
     function parseAndFillData(text) {
-        const lines = text.split('\n').filter(line => line.trim().length > 0);
+        const lines = text.split('\n');
         let detectedRoute = "";
         let detectedPlane = "";
         let extractedRates = [];
         
+        // 1. 航线/机型识别 (依然保留，但更宽松)
         const routeRegex = /(NGB|XIY|SHA|PVG).*?([-\u4e00-\u9fa5a-zA-Z]+).*?(JFK|CDG|LGG|LHR|AMS)/i;
         const planeRegex = /(\d[A-Z]\s+\w+-\d+[A-Z]|\w+-\d+[A-Z])/i;
 
-        for (let i = 0; i < Math.min(lines.length, 5); i++) {
-            const line = lines[i];
+        // 2. 【核心修改】价格提取正则
+        // 逻辑：寻找 "非数字字符 (密度) + 空格 + 数字 (价格1) + [可选: 空格 + 数字 (价格2)]"
+        // 允许密度部分包含任何符号，只要后面跟着价格就行。
+        const priceRegex = /([^\d]+?)\s+(\d+\.?\d*)\s*(?:\d*[^\d]*)?\s*(?:(\d+\.?\d*))?/; 
+        // 更简单的版本：直接找 "字符 + 数字" 的组合，然后尝试提取后面的两个数字
+        const simplePriceRegex = /([^\d\r\n]+?)\s+(\d+\.?\d*)\s+(\d+\.?\d*)|([^\d\r\n]+?)\s+(\d+\.?\d*)/;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            // 航线/机型检测
             if (!detectedRoute && routeRegex.test(line)) detectedRoute = line.trim();
             if (!detectedPlane && planeRegex.test(line) && !detectedRoute.includes(planeRegex.exec(line)[0])) detectedPlane = line.trim();
+
+            // 价格行检测 - 尝试两种模式
+            let match = line.match(simplePriceRegex);
+            
+            if (match) {
+                let density, p1, p2;
+                
+                // 匹配到两个价格的情况: group[1]=density, [2]=p1, [3]=p2
+                if (match[1] && match[2] && match[3]) {
+                    density = match[1].trim();
+                    p1 = match[2];
+                    p2 = match[3];
+                } 
+                // 只匹配到一个价格的情况: group[4]=density, [5]=p1
+                else if (match[4] && match[5]) {
+                    density = match[4].trim();
+                    p1 = match[5];
+                    p2 = match[5]; // 复制一份
+                }
+
+                // 验证：密度不能全是空格或符号，必须有点内容
+                if (density && density.length > 0) {
+                    extractedRates.push({
+                        density: density,
+                        price500: p1,
+                        price1000: p2
+                    });
+                }
+            }
         }
 
-        const densityPriceRegex = /([0-9.:≤]+)\s+([\d.]+)\s*[\u4e00-\u9fa5]?\s*([\d.]+)/; 
-        
-        lines.forEach(line => {
-            const match = line.match(densityPriceRegex);
-            if (match) {
-                extractedRates.push({ density: match[1].trim(), price500: match[2], price1000: match[3] || match[2] });
-            }
-        });
-
+        // 更新 UI
         let updated = false;
         if (detectedRoute) { document.getElementById('route').value = detectedRoute; updated = true; }
         if (detectedPlane) { document.getElementById('plane').value = detectedPlane; updated = true; }
+
+        console.log("Extracted Rates:", extractedRates);
 
         if (extractedRates.length > 0) {
             rates = extractedRates; 
             renderRates(); 
             generateTable();
             updated = true;
-            setTimeout(() => alert(`✅ 识别成功！找到 ${extractedRates.length} 条数据。`), 500);
+            setTimeout(() => alert(`✅ 识别成功！\n找到 ${extractedRates.length} 条数据。\n请检查下方表格，如有错误可手动修改。`), 500);
         } else {
-            if (updated) setTimeout(() => alert("⚠️ 仅识别到航线，请手动补充价格。"), 500);
-            else setTimeout(() => alert("⚠️ 未识别到有效数据，请检查图片清晰度或尝试手动输入。"), 500);
+            if (updated) {
+                setTimeout(() => alert("⚠️ 仅识别到航线/机型，但未找到价格行。\n请查看上方黄色区域的原始文字，确认数字是否被正确识别。"), 500);
+            } else {
+                setTimeout(() => alert("⚠️ 未识别到有效数据。\n请查看上方黄色区域的原始文字。\n如果文字乱码，请尝试提高图片清晰度或调整角度。"), 500);
+            }
         }
     }
 
